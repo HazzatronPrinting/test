@@ -1,0 +1,30 @@
+<!-- Add inside <head> -->
+<script src="https://cdn.jsdelivr.net/npm/shaka-player@4.3.7/dist/shaka-player.compiled.js"></script>
+
+<!-- Modify shared video player -->
+<video id="sharedVideo" controls width="800" height="450"></video>
+<script>
+    async function initDRMPlayer() {
+        const video = document.getElementById('sharedVideo');
+        const player = new shaka.Player(video);
+
+        // Configure DRM (replace with your license server)
+        player.configure({
+            drm: {
+                servers: {
+                    'com.widevine.alpha': 'https://your-license-server.com/widevine',
+                },
+            },
+        });
+
+        // Load a DRM-protected video (HLS/DASH)
+        try {
+            await player.load('https://storage.googleapis.com/shaka-demo-assets/angel-one/dash.mpd');
+        } catch (err) {
+            console.error("DRM Error:", err);
+        }
+    }
+
+    // Call this when uploading a video (requires DRM packaging)
+    initDRMPlayer();
+</script>
