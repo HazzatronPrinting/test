@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Private Video Call</title>
+    <style>
+        body { font-family: Arial; margin: 0; padding: 20px; }
+        #localVideo, #remoteVideo { width: 400px; height: 300px; border: 1px solid black; }
+        #sharedVideo { width: 800px; height: 450px; margin-top: 20px; }
+        button { padding: 10px; margin: 5px; }
+    </style>
+</head>
+<body>
+    <h1>Private Video Call</h1>
+    <div>
+        <video id="localVideo" autoplay muted></video>
+        <video id="remoteVideo" autoplay></video>
+    </div>
+    <div>
+        <button id="startCall">Start Call</button>
+        <button id="endCall">End Call</button>
+    </div>
+    <div>
+        <h2>Shared Video Player</h2>
+        <video id="sharedVideo" controls></video>
+        <input type="file" id="videoUpload" accept="video/*">
+        <button id="syncPlay">Sync & Play</button>
+    </div>
+
+    <script>
+        const localVideo = document.getElementById('localVideo');
+        const remoteVideo = document.getElementById('remoteVideo');
+        const sharedVideo = document.getElementById('sharedVideo');
+        const startCallBtn = document.getElementById('startCall');
+        const endCallBtn = document.getElementById('endCall');
+        const videoUpload = document.getElementById('videoUpload');
+        const syncPlayBtn = document.getElementById('syncPlay');
+
+        let localStream, remoteStream, peerConnection;
+        let isCallActive = false;
+
+        // Block screenshots (detect screen capture attempts)
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'PrintScreen' || (e.ctrlKey && e.key === 'p')) {
+                e.preventDefault();
+                alert("Screenshots are disabled!");
+            }
+        });
+
+        // Start video call
+        startCallBtn.onclick = async () => {
+            try {
+                localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                localVideo.srcObject = localStream;
+                isCallActive = true;
+
+                // Initialize WebRTC (simplified; real app needs signaling server)
+                peerConnection = new RTCPeerConnection();
+                localStream.getTracks().forEach(track => {
+                    peerConnection.addTrack(track, localStream);
+                });
+
+                peerConnection.ontrack = (event) => {
+                    remoteStream = new MediaStream();
+                    event.streams[0].getTracks().forEach(track => {
+                        remoteStream.addTrack(track);
+                    });
+                    remoteVideo.srcObject = remoteStream;
+                };
+
+                // In a real app, exchange ICE candidates via WebSocket
+                peerConnection.onicecandidate = (event) => {
+                    if (event.candidate) {
+                        console.log("New ICE candidate:", event.candidate);
+                        // Send to remote peer via signaling server
+                    }
+                };
+
+            } catch (err) {
+                console.error("Error accessing media:", err);
+            }
+        };
+
+        // End call
+        endCallBtn.onclick = () => {
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+                localVideo.srcObject = null;
+            }
+            if (remoteStream) {
+                remoteVideo.srcObject = null;
+            }
+            if (peerConnection) {
+                peerConnection.close();
+            }
+            isCallActive = false;
+        };
+
+        // Shared video playback
+        videoUpload.onchange = (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                sharedVideo.src = URL.createObjectURL(file);
+            }
+        };
+
+        // Sync playback (simplified; real app needs WebSocket sync)
+        syncPlayBtn.onclick = () => {
+            if (sharedVideo.src) {
+                sharedVideo.currentTime = 0;
+                sharedVideo.play();
+                // In a real app, send play/pause events via WebSocket
+            }
+        };
+    </script>
+</body>
+</html>
